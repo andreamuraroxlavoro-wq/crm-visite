@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Visite</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #181c27;
+  --bg3: #1e2435;
+  --border: #2a3045;
+  --accent: #4f8ef7;
+  --accent2: #38c9a0;
+  --danger: #f75f5f;
+  --warn: #f7b94f;
+  --text: #e8eaf2;
+  --text2: #8892aa;
+  --text3: #4a5468;
+  --card: #1a1f30;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --sidebar-w: 220px;
+  --pri-a: #f75f5f;
+  --pri-b: #f7b94f;
+  --pri-c: #4f8ef7;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── LOGIN ── */
+#login-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 30% 20%, #1a2545 0%, var(--bg) 60%);
+}
+.login-box {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; padding: 48px 40px; width: 380px;
+  box-shadow: var(--shadow);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo .logo-mark {
+  width: 56px; height: 56px; background: var(--accent);
+  border-radius: 16px; display: inline-flex; align-items: center;
+  justify-content: center; font-size: 24px; margin-bottom: 12px;
+}
+.login-logo h1 { font-size: 22px; font-weight: 600; }
+.login-logo p { color: var(--text2); font-size: 13px; margin-top: 4px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 14px; color: var(--text);
+  font-family: var(--font); font-size: 14px; transition: border-color 0.2s;
+  outline: none;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: var(--accent);
+}
+.form-group textarea { resize: vertical; min-height: 80px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  font-family: var(--font); font-size: 14px; font-weight: 500;
+  cursor: pointer; border: none; transition: all 0.15s; text-decoration: none;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #3a7ae0; }
+.btn-success { background: var(--accent2); color: #fff; }
+.btn-success:hover { background: #2aae88; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #d94444; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.btn-full { width: 100%; justify-content: center; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.login-err { color: var(--danger); font-size: 12px; margin-top: 8px; text-align: center; }
+
+/* ── APP SHELL ── */
+#app { display: none; height: 100vh; flex-direction: row; }
+#app.visible { display: flex; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow: hidden;
+}
+.sidebar-top { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+.sidebar-logo { display: flex; align-items: center; gap: 10px; }
+.sidebar-logo .mark {
+  width: 32px; height: 32px; background: var(--accent);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; font-size: 14px; flex-shrink: 0;
+}
+.sidebar-logo span { font-weight: 600; font-size: 15px; }
+.sidebar-user {
+  margin-top: 12px; padding: 10px 12px;
+  background: var(--bg3); border-radius: var(--radius-sm);
+}
+.sidebar-user .name { font-weight: 500; font-size: 13px; }
+.sidebar-user .role {
+  font-size: 11px; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;
+}
+.sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+.nav-section { margin-bottom: 16px; }
+.nav-label {
+  font-size: 10px; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 1px; padding: 0 8px; margin-bottom: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  cursor: pointer; color: var(--text2); font-size: 13px;
+  font-weight: 500; transition: all 0.15s; margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--accent); color: #fff; }
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-bottom {
+  padding: 12px 8px; border-top: 1px solid var(--border);
+}
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  height: 56px; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); background: var(--bg2);
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 16px; font-weight: 600; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+.content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* ── VIEWS ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── STATS CARDS ── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.stat-card .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.stat-card .value { font-size: 28px; font-weight: 600; font-family: var(--mono); }
+.stat-card .sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+/* ── TABLE ── */
+.table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.table-header {
+  padding: 16px 20px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--border);
+  gap: 12px; flex-wrap: wrap;
+}
+.search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  flex: 1; max-width: 320px;
+}
+.search-box input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--font); font-size: 13px; width: 100%;
+}
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 10px 16px; text-align: left; font-size: 11px;
+  color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border); font-weight: 500;
+  background: var(--bg2);
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg3); }
+tbody td { padding: 12px 16px; font-size: 13px; }
+
+/* ── BADGE PRIORITA ── */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; font-family: var(--mono);
+}
+.badge-A { background: rgba(247,95,95,0.15); color: var(--pri-a); }
+.badge-B { background: rgba(247,185,79,0.15); color: var(--pri-b); }
+.badge-C { background: rgba(79,142,247,0.15); color: var(--pri-c); }
+.badge-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 500;
+}
+.tag-positivo { background: rgba(56,201,160,0.15); color: var(--accent2); }
+.tag-negativo { background: rgba(247,95,95,0.15); color: var(--danger); }
+.tag-richiamare { background: rgba(247,185,79,0.15); color: var(--warn); }
+.tag-default { background: var(--bg3); color: var(--text2); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 1000;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; width: 100%; max-width: 600px;
+  max-height: 90vh; display: flex; flex-direction: column;
+  box-shadow: var(--shadow);
+}
+.modal-lg { max-width: 800px; }
+.modal-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.modal-header h3 { font-size: 16px; font-weight: 600; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--bg3); border: none; color: var(--text2);
+  cursor: pointer; font-size: 18px; display: flex;
+  align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.modal-close:hover { background: var(--danger); color: #fff; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-footer {
+  padding: 16px 24px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0;
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-full { grid-column: 1 / -1; }
+
+/* ── CLIENTE DETAIL ── */
+.detail-header {
+  display: flex; align-items: flex-start; gap: 16px;
+  margin-bottom: 24px;
+}
+.detail-avatar {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--accent); display: flex; align-items: center;
+  justify-content: center; font-size: 20px; font-weight: 700;
+  flex-shrink: 0;
+}
+.detail-info h2 { font-size: 18px; font-weight: 600; }
+.detail-info p { color: var(--text2); font-size: 13px; margin-top: 4px; }
+.detail-tabs {
+  display: flex; gap: 4px; margin-bottom: 20px;
+  border-bottom: 1px solid var(--border); padding-bottom: 0;
+}
+.detail-tab {
+  padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500;
+  color: var(--text2); border-bottom: 2px solid transparent;
+  transition: all 0.15s; margin-bottom: -1px;
+}
+.detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.detail-tab-content { display: none; }
+.detail-tab-content.active { display: block; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.info-item { }
+.info-item .lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.info-item .val { font-size: 14px; }
+
+/* ── CALENDAR ── */
+.cal-nav {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.cal-nav h2 { font-size: 18px; font-weight: 600; flex: 1; text-align: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border-radius: var(--radius); overflow: hidden; }
+.cal-day-header {
+  background: var(--bg2); padding: 10px; text-align: center;
+  font-size: 11px; color: var(--text2); text-transform: uppercase;
+  letter-spacing: 0.5px; font-weight: 500;
+}
+.cal-day {
+  background: var(--card); min-height: 100px; padding: 8px;
+  cursor: pointer; transition: background 0.1s;
+}
+.cal-day:hover { background: var(--bg3); }
+.cal-day.other-month { opacity: 0.3; }
+.cal-day.today { background: rgba(79,142,247,0.08); }
+.cal-day .day-num {
+  font-size: 12px; font-weight: 600; margin-bottom: 4px;
+  width: 24px; height: 24px; display: flex; align-items: center;
+  justify-content: center; border-radius: 6px;
+}
+.cal-day.today .day-num { background: var(--accent); color: #fff; }
+.cal-event {
+  font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  margin-bottom: 2px; cursor: pointer; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+}
+.cal-event.appuntamento { background: rgba(79,142,247,0.2); color: var(--accent); }
+.cal-event.visita { background: rgba(56,201,160,0.2); color: var(--accent2); }
+
+/* ── MAP ── */
+#map { height: calc(100vh - 56px - 48px - 56px); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.map-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.leaflet-popup-content-wrapper { background: var(--card) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: 10px !important; box-shadow: var(--shadow) !important; }
+.leaflet-popup-tip { background: var(--card) !important; }
+.map-popup h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.map-popup p { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.map-popup a { color: var(--accent); font-size: 12px; text-decoration: none; font-weight: 500; }
+
+/* ── REPORT ── */
+.report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.report-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.report-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
+.bar-item { margin-bottom: 10px; }
+.bar-item .bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.bar-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+/* ── CAMPI CUSTOM ── */
+.custom-fields-list { }
+.custom-field-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.custom-field-item .field-name { flex: 1; font-size: 13px; font-weight: 500; }
+.custom-field-item .field-type { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+
+/* ── TOAST ── */
+.toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+  font-size: 13px; box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 10px;
+  animation: slideIn 0.2s ease;
+  min-width: 260px;
+}
+.toast.success { border-left: 3px solid var(--accent2); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid var(--accent); }
+@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text2); }
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state p { font-size: 14px; }
+
+/* ── LOADING ── */
+.loading { text-align: center; padding: 40px; color: var(--text2); }
+.spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.7s linear infinite; margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── FILTER BAR ── */
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-btn {
+  padding: 5px 12px; border-radius: 20px; font-size: 12px;
+  font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--text2); transition: all 0.15s;
+  font-family: var(--font);
+}
+.filter-btn:hover { background: var(--bg3); color: var(--text); }
+.filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.filter-btn.fa { color: var(--pri-a); border-color: var(--pri-a); }
+.filter-btn.fa.active { background: var(--pri-a); color: #fff; }
+.filter-btn.fb { color: var(--pri-b); border-color: var(--pri-b); }
+.filter-btn.fb.active { background: var(--pri-b); color: #fff; }
+.filter-btn.fc { color: var(--pri-c); border-color: var(--pri-c); }
+.filter-btn.fc.active { background: var(--pri-c); color: #fff; }
+
+/* ── PAGINATION ── */
+.pagination { display: flex; align-items: center; gap: 8px; padding: 12px 16px; justify-content: flex-end; border-top: 1px solid var(--border); }
+.pagination span { font-size: 12px; color: var(--text2); }
+.page-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-family: var(--font); font-size: 12px; transition: all 0.15s; }
+.page-btn:hover { background: var(--bg3); color: var(--text); }
+.page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── SETTINGS ── */
+.settings-section { margin-bottom: 32px; }
+.settings-section h3 { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.agent-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.agent-avatar {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--accent); display: flex; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 13px;
+}
+.agent-info { flex: 1; }
+.agent-info .aname { font-size: 13px; font-weight: 500; }
+.agent-info .aemail { font-size: 12px; color: var(--text2); }
+.role-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+}
+.role-admin { background: rgba(247,185,79,0.15); color: var(--warn); }
+.role-agente { background: rgba(79,142,247,0.15); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ LOGIN ═══════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-mark">📍</div>
+      <h1>CRM Visite</h1>
+      <p>Gestione clienti e visite sul campo</p>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="email@azienda.it" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Accedi</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ APP ═══════════════════════════════ -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-logo">
+        <div class="mark">📍</div>
+        <span>CRM Visite</span>
+      </div>
+      <div class="sidebar-user">
+        <div class="name" id="sb-name">—</div>
+        <div class="role" id="sb-role">—</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-label">Principale</div>
+        <div class="nav-item active" onclick="showView('dashboard')">
+          <span class="icon">📊</span> Dashboard
+        </div>
+        <div class="nav-item" onclick="showView('clienti')">
+          <span class="icon">🏢</span> Clienti
+        </div>
+        <div class="nav-item" onclick="showView('calendario')">
+          <span class="icon">📅</span> Calendario
+        </div>
+        <div class="nav-item" onclick="showView('mappa')">
+          <span class="icon">🗺️</span> Mappa
+        </div>
+        <div class="nav-item" onclick="showView('visite')">
+          <span class="icon">✅</span> Visite
+        </div>
+        <div class="nav-item" onclick="showView('report')">
+          <span class="icon">📈</span> Report
+        </div>
+      </div>
+      <div class="nav-section" id="admin-nav" style="display:none">
+        <div class="nav-label">Amministrazione</div>
+        <div class="nav-item" onclick="showView('agenti')">
+          <span class="icon">👥</span> Agenti
+        </div>
+        <div class="nav-item" onclick="showView('impostazioni')">
+          <span class="icon">⚙️</span> Impostazioni
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="btn btn-ghost btn-full btn-sm" onclick="doLogout()">🚪 Esci</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="stats-grid" id="dash-stats"></div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <span style="font-weight:600">Ultime visite</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Cliente</th><th>Data</th><th>Esito</th><th>Note</th>
+            </tr></thead>
+            <tbody id="dash-visite"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CLIENTI -->
+      <div class="view" id="view-clienti">
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="cli-search" placeholder="Cerca cliente..." oninput="filterClienti()">
+            </div>
+            <div class="filter-bar">
+              <button class="filter-btn active" onclick="setPriFilter('all',this)">Tutti</button>
+              <button class="filter-btn fa" onclick="setPriFilter('A',this)">A</button>
+              <button class="filter-btn fb" onclick="setPriFilter('B',this)">B</button>
+              <button class="filter-btn fc" onclick="setPriFilter('C',this)">C</button>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="openImportModal()">⬆ Importa</button>
+              <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuovo</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Pri.</th><th>Ragione Sociale</th><th>Città</th>
+              <th>Telefono</th><th>Categoria</th><th>Azioni</th>
+            </tr></thead>
+            <tbody id="cli-tbody"></tbody>
+          </table>
+          <div class="pagination" id="cli-pagination"></div>
+        </div>
+      </div>
+
+      <!-- CALENDARIO -->
+      <div class="view" id="view-calendario">
+        <div class="cal-nav">
+          <button class="btn btn-ghost btn-sm" onclick="calMove(-1)">◀</button>
+          <h2 id="cal-title"></h2>
+          <button class="btn btn-ghost btn-sm" onclick="calMove(1)">▶</button>
+          <button class="btn btn-primary btn-sm" onclick="openAppModal()">+ Appuntamento</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+
+      <!-- MAPPA -->
+      <div class="view" id="view-mappa">
+        <div class="map-controls">
+          <div class="search-box" style="max-width:280px">
+            <span>🔍</span>
+            <input type="text" id="map-search" placeholder="Cerca cliente su mappa..." oninput="filterMapClienti()">
+          </div>
+          <div class="filter-bar">
+            <button class="filter-btn active" onclick="setMapPriFilter('all',this)">Tutti</button>
+            <button class="filter-btn fa" onclick="setMapPriFilter('A',this)">A</button>
+            <button class="filter-btn fb" onclick="setMapPriFilter('B',this)">B</button>
+            <button class="filter-btn fc" onclick="setMapPriFilter('C',this)">C</button>
+          </div>
+          <select id="map-style" onchange="changeMapStyle()" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px">
+            <option value="dark">🌑 Scura</option>
+            <option value="light">☀️ Chiara</option>
+            <option value="streets">🗺️ Stradale</option>
+            <option value="topo">🏔️ Topografica</option>
+          </select>
+          <span id="map-count" style="font-size:12px;color:var(--text2);margin-left:auto"></span>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <!-- VISITE -->
+      <div class="view" id="view-visite">
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="vis-search" placeholder="Cerca visita..." oninput="filterVisite()">
+            </div>
+            <div style="display:flex;gap:8px">
+              <input type="date" id="vis-from" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--font);font-size:13px" onchange="filterVisite()">
+              <input type="date" id="vis-to" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--font);font-size:13px" onchange="filterVisite()">
+              <button class="btn btn-primary btn-sm" onclick="openVisitaModal()">+ Nuova visita</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Cliente</th><th>Data</th><th>Esito</th><th>Durata</th><th>Note</th><th>Azioni</th>
+            </tr></thead>
+            <tbody id="vis-tbody"></tbody>
+          </table>
+          <div class="pagination" id="vis-pagination"></div>
+        </div>
+      </div>
+
+      <!-- REPORT -->
+      <div class="view" id="view-report">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+          <input type="date" id="rep-from" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px">
+          <input type="date" id="rep-to" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px">
+          <button class="btn btn-primary btn-sm" onclick="loadReport()">Aggiorna</button>
+        </div>
+        <div class="stats-grid" id="rep-stats"></div>
+        <div class="report-grid" id="rep-charts"></div>
+      </div>
+
+      <!-- AGENTI -->
+      <div class="view" id="view-agenti">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+          <button class="btn btn-primary btn-sm" onclick="openAgenteModal()">+ Nuovo agente</button>
+        </div>
+        <div id="agenti-list"></div>
+      </div>
+
+      <!-- IMPOSTAZIONI -->
+      <div class="view" id="view-impostazioni">
+        <div class="settings-section">
+          <h3>Campi personalizzati — Clienti</h3>
+          <div id="custom-clienti-list"></div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openCampoModal('clienti')">+ Aggiungi campo</button>
+        </div>
+        <div class="settings-section">
+          <h3>Campi personalizzati — Visite</h3>
+          <div id="custom-visite-list"></div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openCampoModal('visite')">+ Aggiungi campo</button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /app -->
+
+<!-- ═══════ MODALS ═══════ -->
+
+<!-- CLIENTE MODAL -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="modal-cliente-title">Nuovo cliente</h3>
+      <button class="modal-close" onclick="closeModal('modal-cliente')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cli-id">
+      <div class="form-row">
+        <div class="form-group form-full">
+          <label>Ragione Sociale *</label>
+          <input type="text" id="cli-ragione" placeholder="Nome azienda o cliente">
+        </div>
+        <div class="form-group">
+          <label>Priorità</label>
+          <select id="cli-priorita">
+            <option value="A">A — Alta</option>
+            <option value="B" selected>B — Media</option>
+            <option value="C">C — Bassa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Categoria / Settore</label>
+          <input type="text" id="cli-categoria" placeholder="es. Retail, Industria...">
+        </div>
+        <div class="form-group form-full">
+          <label>Indirizzo</label>
+          <input type="text" id="cli-indirizzo" placeholder="Via e numero civico">
+        </div>
+        <div class="form-group">
+          <label>CAP</label>
+          <input type="text" id="cli-cap" placeholder="00000">
+        </div>
+        <div class="form-group">
+          <label>Città</label>
+          <input type="text" id="cli-citta" placeholder="Città">
+        </div>
+        <div class="form-group">
+          <label>Provincia</label>
+          <input type="text" id="cli-provincia" placeholder="TO">
+        </div>
+        <div class="form-group">
+          <label>Telefono</label>
+          <input type="text" id="cli-tel" placeholder="+39 000 0000000">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="cli-email" placeholder="email@cliente.it">
+        </div>
+        <div class="form-group form-full">
+          <label>Note libere</label>
+          <textarea id="cli-note" placeholder="Annotazioni sul cliente..."></textarea>
+        </div>
+      </div>
+      <!-- Campi custom clienti -->
+      <div id="cli-custom-fields"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-cliente')">Annulla</button>
+      <button class="btn btn-primary" onclick="saveCliente()">Salva cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENTE DETAIL MODAL -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>Scheda cliente</h3>
+      <button class="modal-close" onclick="closeModal('modal-detail')">×</button>
+    </div>
+    <div class="modal-body" id="modal-detail-body"></div>
+  </div>
+</div>
+
+<!-- VISITA MODAL -->
+<div class="modal-overlay" id="modal-visita">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-visita-title">Nuova visita</h3>
+      <button class="modal-close" onclick="closeModal('modal-visita')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="vis-id">
+      <div class="form-row">
+        <div class="form-group form-full">
+          <label>Cliente *</label>
+          <select id="vis-cliente"></select>
+        </div>
+        <div class="form-group">
+          <label>Data e ora *</label>
+          <input type="datetime-local" id="vis-data">
+        </div>
+        <div class="form-group">
+          <label>Esito</label>
+          <select id="vis-esito">
+            <option value="">— seleziona —</option>
+            <option value="Positivo">Positivo</option>
+            <option value="Negativo">Negativo</option>
+            <option value="Da richiamare">Da richiamare</option>
+            <option value="Non disponibile">Non disponibile</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Durata (minuti)</label>
+          <input type="number" id="vis-durata" placeholder="30" min="0">
+        </div>
+        <div class="form-group">
+          <label>Prossima visita</label>
+          <input type="date" id="vis-prossima">
+        </div>
+        <div class="form-group form-full">
+          <label>Note visita</label>
+          <textarea id="vis-note" placeholder="Dettagli della visita..."></textarea>
+        </div>
+      </div>
+      <div id="vis-custom-fields"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-visita')">Annulla</button>
+      <button class="btn btn-primary" onclick="saveVisita()">Salva visita</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPUNTAMENTO MODAL -->
+<div class="modal-overlay" id="modal-app">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-app-title">Nuovo appuntamento</h3>
+      <button class="modal-close" onclick="closeModal('modal-app')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="app-id">
+      <div class="form-row">
+        <div class="form-group form-full">
+          <label>Titolo *</label>
+          <input type="text" id="app-titolo" placeholder="Oggetto appuntamento">
+        </div>
+        <div class="form-group form-full">
+          <label>Cliente</label>
+          <select id="app-cliente"><option value="">— nessuno —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Inizio *</label>
+          <input type="datetime-local" id="app-inizio">
+        </div>
+        <div class="form-group">
+          <label>Fine</label>
+          <input type="datetime-local" id="app-fine">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="app-tipo">
+            <option value="Visita">Visita</option>
+            <option value="Chiamata">Chiamata</option>
+            <option value="Riunione">Riunione</option>
+            <option value="Altro">Altro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ricorrente</label>
+          <select id="app-ricorrente">
+            <option value="">No</option>
+            <option value="settimanale">Settimanale</option>
+            <option value="mensile">Mensile</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label>Note</label>
+          <textarea id="app-note" placeholder="Note appuntamento..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-app')">Annulla</button>
+      <button class="btn btn-primary" onclick="saveAppuntamento()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGENTE MODAL -->
+<div class="modal-overlay" id="modal-agente">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-agente-title">Nuovo agente</h3>
+      <button class="modal-close" onclick="closeModal('modal-agente')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ag-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome completo *</label>
+          <input type="text" id="ag-nome" placeholder="Nome Cognome">
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="ag-email" placeholder="email@azienda.it">
+        </div>
+        <div class="form-group">
+          <label>Password *</label>
+          <input type="password" id="ag-pwd" placeholder="Min 6 caratteri">
+        </div>
+        <div class="form-group">
+          <label>Ruolo</label>
+          <select id="ag-ruolo">
+            <option value="agente">Agente</option>
+            <option value="admin">Amministratore</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-agente')">Annulla</button>
+      <button class="btn btn-primary" onclick="saveAgente()">Salva agente</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMPO CUSTOM MODAL -->
+<div class="modal-overlay" id="modal-campo">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Nuovo campo personalizzato</h3>
+      <button class="modal-close" onclick="closeModal('modal-campo')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="campo-entita">
+      <div class="form-row">
+        <div class="form-group form-full">
+          <label>Nome campo *</label>
+          <input type="text" id="campo-nome" placeholder="es. Fatturato, Referente, Contratto...">
+        </div>
+        <div class="form-group form-full">
+          <label>Tipo campo</label>
+          <select id="campo-tipo">
+            <option value="text">Testo</option>
+            <option value="number">Numero</option>
+            <option value="date">Data</option>
+            <option value="select">Lista scelta</option>
+            <option value="textarea">Testo lungo</option>
+            <option value="checkbox">Sì/No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-campo')">Annulla</button>
+      <button class="btn btn-primary" onclick="saveCampoCustom()">Aggiungi campo</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Importa clienti da Excel / CSV</h3>
+      <button class="modal-close" onclick="closeModal('modal-import')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+        Supporta il formato <strong>Portatour</strong> (mappatura automatica di tutti i campi) o qualsiasi Excel con colonne standard. Importazione in batch da 100 clienti.
+      </p>
+      <div class="form-group">
+        <label>Agente assegnato</label>
+        <select id="import-agente"></select>
+      </div>
+      <div class="form-group">
+        <label>File Excel (.xlsx) o CSV</label>
+        <input type="file" id="import-file" accept=".xlsx,.xls,.csv"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;width:100%;color:var(--text)">
+      </div>
+      <div id="import-preview" style="margin-top:12px;font-size:12px;color:var(--text2)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-import')">Annulla</button>
+      <button class="btn btn-primary" onclick="doImport()">Importa</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══════════════════════════════ SCRIPT ═══════════════════════════════ -->
+<script>
+// ══════════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════════
+const API = 'https://script.google.com/macros/s/AKfycbwkkzMYUy8g6wurIRvs09XfrsBZyzmrLq-eN5dUXD8IYPaRnD2VR8SDNNlsg_lhtd-j/exec';
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let SESSION = null;          // agente loggato
+let CLIENTI = [];            // cache clienti
+let VISITE  = [];            // cache visite
+let APPUNTAMENTI = [];       // cache appuntamenti
+let AGENTI  = [];            // cache agenti
+let CAMPI_CLI = [];          // campi custom clienti
+let CAMPI_VIS = [];          // campi custom visite
+let MAP_INST = null;         // istanza leaflet
+let MAP_MARKERS = [];        // marker mappa
+let MAP_PRI_FILTER = 'all';  // filtro priorità mappa
+let CLI_PRI_FILTER = 'all';  // filtro priorità clienti
+let CLI_PAGE = 1;            // pagina clienti
+let VIS_PAGE = 1;            // pagina visite
+const PAGE_SIZE = 50;
+let CAL_DATE = new Date();   // data calendario attiva
+let IMPORT_DATA = [];        // dati import excel
+
+// ══════════════════════════════════════════════════════════
+//  API HELPER
+// ══════════════════════════════════════════════════════════
+function api(params) {
+  return new Promise((resolve) => {
+    const cbName = '_cb' + Date.now() + Math.floor(Math.random()*10000);
+    window[cbName] = (data) => {
+      resolve(data);
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+    };
+    const url = API + '?callback=' + cbName + '&' + new URLSearchParams(params).toString();
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = url;
+    script.onerror = () => {
+      resolve({ success: false, error: 'Connessione fallita. Verifica la connessione internet.' });
+      delete window[cbName];
+      script.remove();
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  if (!email || !pwd) { showErr('Inserisci email e password'); return; }
+  const res = await api({ action:'login', email, password: pwd });
+  if (!res.success) { showErr(res.error || 'Credenziali errate'); return; }
+  SESSION = res.data;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('sb-name').textContent = SESSION.Nome;
+  document.getElementById('sb-role').textContent = SESSION.Ruolo === 'admin' ? 'Amministratore' : 'Agente';
+  if (SESSION.Ruolo === 'admin') document.getElementById('admin-nav').style.display = 'block';
+  await Promise.all([loadClienti(), loadVisite(), loadAppuntamenti(), loadCampiCustom()]);
+  showView('dashboard');
+}
+
+function showErr(msg) {
+  document.getElementById('login-err').textContent = msg;
+}
+
+function doLogout() {
+  SESSION = null; CLIENTI = []; VISITE = []; APPUNTAMENTI = [];
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pwd').value = '';
+  document.getElementById('login-err').textContent = '';
+}
+
+// Enter sul login
+document.getElementById('login-pwd').addEventListener('keyup', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ══════════════════════════════════════════════════════════
+//  DATA LOADERS
+// ══════════════════════════════════════════════════════════
+async function loadClienti() {
+  const r = await api({ action:'getClienti', agentID: SESSION.ID, ruolo: SESSION.Ruolo });
+  if (r.success) CLIENTI = r.data || [];
+}
+
+async function loadVisite() {
+  const r = await api({ action:'getVisite', agentID: SESSION.ID, ruolo: SESSION.Ruolo });
+  if (r.success) VISITE = r.data || [];
+}
+
+async function loadAppuntamenti() {
+  const r = await api({ action:'getAppuntamenti', agentID: SESSION.ID, ruolo: SESSION.Ruolo });
+  if (r.success) APPUNTAMENTI = r.data || [];
+}
+
+async function loadAgenti() {
+  const r = await api({ action:'getAgenti' });
+  if (r.success) AGENTI = r.data || [];
+}
+
+async function loadCampiCustom() {
+  const rc = await api({ action:'getCampiCustom', entita:'clienti' });
+  const rv = await api({ action:'getCampiCustom', entita:'visite' });
+  if (rc.success) CAMPI_CLI = rc.data || [];
+  if (rv.success) CAMPI_VIS = rv.data || [];
+}
+
+// ══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════
+const VIEW_TITLES = {
+  dashboard:'Dashboard', clienti:'Clienti', calendario:'Calendario',
+  mappa:'Mappa clienti', visite:'Visite', report:'Report',
+  agenti:'Gestione agenti', impostazioni:'Impostazioni'
+};
+const VIEW_ACTIONS = {
+  clienti: () => `<button class="btn btn-ghost btn-sm" onclick="openImportModal()">⬆ Importa</button>
+                  <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuovo cliente</button>`,
+  visite: () => `<button class="btn btn-primary btn-sm" onclick="openVisitaModal()">+ Nuova visita</button>`,
+  calendario: () => `<button class="btn btn-primary btn-sm" onclick="openAppModal()">+ Appuntamento</button>`,
+  agenti: () => `<button class="btn btn-primary btn-sm" onclick="openAgenteModal()">+ Nuovo agente</button>`,
+};
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const v = document.getElementById('view-' + name);
+  if (v) v.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + name + "'"))
+      n.classList.add('active');
+  });
+  document.getElementById('topbar-title').textContent = VIEW_TITLES[name] || name;
+  document.getElementById('topbar-actions').innerHTML = VIEW_ACTIONS[name] ? VIEW_ACTIONS[name]() : '';
+
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'clienti') { CLI_PAGE = 1; renderClienti(); }
+  if (name === 'calendario') renderCalendar();
+  if (name === 'mappa') renderMappa();
+  if (name === 'visite') { VIS_PAGE = 1; renderVisite(); }
+  if (name === 'report') initReport();
+  if (name === 'agenti') renderAgenti();
+  if (name === 'impostazioni') renderImpostazioni();
+}
+
+// ══════════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════════
+function renderDashboard() {
+  const totCli = CLIENTI.length;
+  const totVis = VISITE.length;
+  const oggi   = new Date().toISOString().substring(0,10);
+  const oggiVis = VISITE.filter(v => (v.DataOra||'').substring(0,10) === oggi).length;
+  const cliA = CLIENTI.filter(c => c.Priorita === 'A').length;
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="label">Clienti totali</div>
+      <div class="value">${totCli}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Priorità A</div>
+      <div class="value" style="color:var(--pri-a)">${cliA}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Visite totali</div>
+      <div class="value">${totVis}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Visite oggi</div>
+      <div class="value" style="color:var(--accent2)">${oggiVis}</div>
+    </div>
+  `;
+
+  const ultime = [...VISITE].sort((a,b) => (b.DataOra||'').localeCompare(a.DataOra||'')).slice(0,10);
+  document.getElementById('dash-visite').innerHTML = ultime.length ? ultime.map(v => {
+    const cli = CLIENTI.find(c => c.ID === v.ClienteID);
+    return `<tr>
+      <td>${cli ? cli.RagioneSociale : '—'}</td>
+      <td>${fmtDate(v.DataOra)}</td>
+      <td>${esitoTag(v.Esito)}</td>
+      <td style="color:var(--text2);font-size:12px">${(v.NoteVisita||'').substring(0,60)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="4"><div class="empty-state"><div class="icon">✅</div><p>Nessuna visita registrata</p></div></td></tr>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  CLIENTI
+// ══════════════════════════════════════════════════════════
+function getFilteredClienti() {
+  const q = (document.getElementById('cli-search')?.value || '').toLowerCase();
+  return CLIENTI.filter(c => {
+    const matchPri = CLI_PRI_FILTER === 'all' || c.Priorita === CLI_PRI_FILTER;
+    const matchQ   = !q || (c.RagioneSociale||'').toLowerCase().includes(q)
+                        || (c.Citta||'').toLowerCase().includes(q)
+                        || (c.Categoria||'').toLowerCase().includes(q);
+    return matchPri && matchQ;
+  });
+}
+
+function setPriFilter(p, btn) {
+  CLI_PRI_FILTER = p; CLI_PAGE = 1;
+  document.querySelectorAll('#view-clienti .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderClienti();
+}
+
+function filterClienti() { CLI_PAGE = 1; renderClienti(); }
+
+function renderClienti() {
+  const data  = getFilteredClienti();
+  const total = data.length;
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const slice = data.slice((CLI_PAGE-1)*PAGE_SIZE, CLI_PAGE*PAGE_SIZE);
+
+  document.getElementById('cli-tbody').innerHTML = slice.length ? slice.map(c => `
+    <tr onclick="openClienteDetail('${c.ID}')">
+      <td><span class="badge badge-${c.Priorita||'C'}">${c.Priorita||'C'}</span></td>
+      <td style="font-weight:500">${c.RagioneSociale||'—'}</td>
+      <td>${c.Citta||'—'}</td>
+      <td>${c.Telefono||'—'}</td>
+      <td style="color:var(--text2);font-size:12px">${c.Categoria||'—'}</td>
+      <td onclick="event.stopPropagation()" style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openClienteModal('${c.ID}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="openVisitaModal(null,'${c.ID}')">✅</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCliente('${c.ID}')">🗑</button>
+      </td>
+    </tr>`).join('') :
+    `<tr><td colspan="6"><div class="empty-state"><div class="icon">🏢</div><p>Nessun cliente trovato</p></div></td></tr>`;
+
+  renderPagination('cli-pagination', CLI_PAGE, pages, p => { CLI_PAGE = p; renderClienti(); });
+}
+
+async function openClienteModal(id) {
+  document.getElementById('cli-id').value = '';
+  document.getElementById('cli-ragione').value = '';
+  document.getElementById('cli-priorita').value = 'B';
+  document.getElementById('cli-categoria').value = '';
+  document.getElementById('cli-indirizzo').value = '';
+  document.getElementById('cli-cap').value = '';
+  document.getElementById('cli-citta').value = '';
+  document.getElementById('cli-provincia').value = '';
+  document.getElementById('cli-tel').value = '';
+  document.getElementById('cli-email').value = '';
+  document.getElementById('cli-note').value = '';
+  renderCampiCustomForm('cli-custom-fields', CAMPI_CLI, {});
+  document.getElementById('modal-cliente-title').textContent = id ? 'Modifica cliente' : 'Nuovo cliente';
+
+  if (id) {
+    const c = CLIENTI.find(x => x.ID === id);
+    if (c) {
+      document.getElementById('cli-id').value = c.ID;
+      document.getElementById('cli-ragione').value = c.RagioneSociale||'';
+      document.getElementById('cli-priorita').value = c.Priorita||'B';
+      document.getElementById('cli-categoria').value = c.Categoria||'';
+      document.getElementById('cli-indirizzo').value = c.Indirizzo||'';
+      document.getElementById('cli-cap').value = c.CAP||'';
+      document.getElementById('cli-citta').value = c.Citta||'';
+      document.getElementById('cli-provincia').value = c.Provincia||'';
+      document.getElementById('cli-tel').value = c.Telefono||'';
+      document.getElementById('cli-email').value = c.Email||'';
+      document.getElementById('cli-note').value = c.NoteLibere||'';
+      renderCampiCustomForm('cli-custom-fields', CAMPI_CLI, c);
+    }
+  }
+  openModal('modal-cliente');
+}
+
+async function saveCliente() {
+  const id = document.getElementById('cli-id').value;
+  const ragione = document.getElementById('cli-ragione').value.trim();
+  if (!ragione) { toast('Ragione sociale obbligatoria','error'); return; }
+
+  const data = {
+    ID: id || undefined,
+    AgentID: SESSION.ID,
+    RagioneSociale: ragione,
+    Priorita: document.getElementById('cli-priorita').value,
+    Categoria: document.getElementById('cli-categoria').value,
+    Indirizzo: document.getElementById('cli-indirizzo').value,
+    CAP: document.getElementById('cli-cap').value,
+    Citta: document.getElementById('cli-citta').value,
+    Provincia: document.getElementById('cli-provincia').value,
+    Telefono: document.getElementById('cli-tel').value,
+    Email: document.getElementById('cli-email').value,
+    NoteLibere: document.getElementById('cli-note').value,
+    ...getCampiCustomValues('cli-custom-fields', CAMPI_CLI)
+  };
+
+  const r = await api({ action:'saveCliente', data: JSON.stringify(data) });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast(id ? 'Cliente aggiornato' : 'Cliente creato','success');
+  closeModal('modal-cliente');
+  await loadClienti();
+  renderClienti();
+}
+
+async function deleteCliente(id) {
+  if (!confirm('Eliminare questo cliente?')) return;
+  const r = await api({ action:'deleteCliente', id });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Cliente eliminato','success');
+  await loadClienti();
+  renderClienti();
+}
+
+function openClienteDetail(id) {
+  const c = CLIENTI.find(x => x.ID === id);
+  if (!c) return;
+  const visite = VISITE.filter(v => v.ClienteID === id).sort((a,b)=>(b.DataOra||'').localeCompare(a.DataOra||''));
+  const initials = (c.RagioneSociale||'?').substring(0,2).toUpperCase();
+
+  const customHtml = CAMPI_CLI.map(f => `
+    <div class="info-item">
+      <div class="lbl">${f.NomeCampo}</div>
+      <div class="val">${c[f.NomeCampo]||'—'}</div>
+    </div>`).join('');
+
+  document.getElementById('modal-detail-body').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-avatar">${initials}</div>
+      <div class="detail-info">
+        <h2>${c.RagioneSociale}</h2>
+        <p>${c.Indirizzo||''} ${c.Citta ? '— '+c.Citta : ''}</p>
+      </div>
+      <span class="badge badge-${c.Priorita||'C'}" style="margin-left:auto">${c.Priorita||'C'}</span>
+    </div>
+    <div class="detail-tabs">
+      <div class="detail-tab active" onclick="switchDetailTab('info',this)">Informazioni</div>
+      <div class="detail-tab" onclick="switchDetailTab('visite',this)">Visite (${visite.length})</div>
+    </div>
+    <div class="detail-tab-content active" id="dt-info">
+      <div class="info-grid">
+        <div class="info-item"><div class="lbl">Telefono</div><div class="val">${c.Telefono ? '<a href="tel:'+c.Telefono+'" style="color:var(--accent)">' + c.Telefono + '</a>' : '—'}</div></div>
+        <div class="info-item"><div class="lbl">Email</div><div class="val">${c.Email ? '<a href="mailto:'+c.Email+'" style="color:var(--accent)">' + c.Email + '</a>' : '—'}</div></div>
+        <div class="info-item"><div class="lbl">Categoria</div><div class="val">${c.Categoria||'—'}</div></div>
+        <div class="info-item"><div class="lbl">Provincia</div><div class="val">${c.Provincia||'—'}</div></div>
+        ${customHtml}
+        <div class="info-item form-full" style="grid-column:1/-1"><div class="lbl">Note</div><div class="val" style="color:var(--text2)">${c.NoteLibere||'—'}</div></div>
+      </div>
+      ${c.Lat && c.Lng ? `<div style="margin-top:16px"><a href="https://www.google.com/maps/dir/?api=1&destination=${c.Lat},${c.Lng}" target="_blank" class="btn btn-ghost btn-sm">🗺️ Apri in Google Maps</a></div>` : ''}
+    </div>
+    <div class="detail-tab-content" id="dt-visite">
+      ${visite.length ? `<table><thead><tr><th>Data</th><th>Esito</th><th>Durata</th><th>Note</th></tr></thead><tbody>
+        ${visite.map(v=>`<tr>
+          <td>${fmtDate(v.DataOra)}</td>
+          <td>${esitoTag(v.Esito)}</td>
+          <td style="color:var(--text2)">${v.Durata ? v.Durata+' min' : '—'}</td>
+          <td style="color:var(--text2);font-size:12px">${(v.NoteVisita||'').substring(0,80)}</td>
+        </tr>`).join('')}
+      </tbody></table>` : '<div class="empty-state"><div class="icon">✅</div><p>Nessuna visita per questo cliente</p></div>'}
+      <div style="margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="closeModal('modal-detail');openVisitaModal(null,'${id}')">+ Registra visita</button>
+      </div>
+    </div>
+  `;
+  openModal('modal-detail');
+}
+
+function switchDetailTab(name, el) {
+  document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.detail-tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('dt-' + name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+//  VISITE
+// ══════════════════════════════════════════════════════════
+function filterVisite() { VIS_PAGE = 1; renderVisite(); }
+
+function renderVisite() {
+  const q    = (document.getElementById('vis-search')?.value || '').toLowerCase();
+  const from = document.getElementById('vis-from')?.value || '';
+  const to   = document.getElementById('vis-to')?.value || '';
+
+  const data = VISITE.filter(v => {
+    const cli = CLIENTI.find(c => c.ID === v.ClienteID);
+    const name = (cli?.RagioneSociale||'').toLowerCase();
+    const matchQ = !q || name.includes(q) || (v.NoteVisita||'').toLowerCase().includes(q);
+    const dt = (v.DataOra||'').substring(0,10);
+    const matchFrom = !from || dt >= from;
+    const matchTo   = !to   || dt <= to;
+    return matchQ && matchFrom && matchTo;
+  }).sort((a,b)=>(b.DataOra||'').localeCompare(a.DataOra||''));
+
+  const pages = Math.ceil(data.length / PAGE_SIZE);
+  const slice = data.slice((VIS_PAGE-1)*PAGE_SIZE, VIS_PAGE*PAGE_SIZE);
+
+  document.getElementById('vis-tbody').innerHTML = slice.length ? slice.map(v => {
+    const cli = CLIENTI.find(c => c.ID === v.ClienteID);
+    return `<tr>
+      <td style="font-weight:500">${cli?.RagioneSociale||'—'}</td>
+      <td>${fmtDate(v.DataOra)}</td>
+      <td>${esitoTag(v.Esito)}</td>
+      <td style="color:var(--text2)">${v.Durata ? v.Durata+' min' : '—'}</td>
+      <td style="color:var(--text2);font-size:12px">${(v.NoteVisita||'').substring(0,60)}</td>
+      <td onclick="event.stopPropagation()" style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openVisitaModal('${v.ID}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteVisita('${v.ID}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('') :
+  `<tr><td colspan="6"><div class="empty-state"><div class="icon">✅</div><p>Nessuna visita trovata</p></div></td></tr>`;
+
+  renderPagination('vis-pagination', VIS_PAGE, pages, p => { VIS_PAGE = p; renderVisite(); });
+}
+
+function openVisitaModal(id, clienteIDPreset) {
+  document.getElementById('vis-id').value = '';
+  document.getElementById('vis-data').value = new Date().toISOString().slice(0,16);
+  document.getElementById('vis-esito').value = '';
+  document.getElementById('vis-durata').value = '';
+  document.getElementById('vis-prossima').value = '';
+  document.getElementById('vis-note').value = '';
+  document.getElementById('modal-visita-title').textContent = id ? 'Modifica visita' : 'Nuova visita';
+
+  // Popola select clienti
+  const sel = document.getElementById('vis-cliente');
+  sel.innerHTML = CLIENTI.map(c => `<option value="${c.ID}" ${c.ID===clienteIDPreset?'selected':''}>${c.RagioneSociale}</option>`).join('');
+
+  renderCampiCustomForm('vis-custom-fields', CAMPI_VIS, {});
+
+  if (id) {
+    const v = VISITE.find(x => x.ID === id);
+    if (v) {
+      document.getElementById('vis-id').value = v.ID;
+      sel.value = v.ClienteID || '';
+      document.getElementById('vis-data').value = (v.DataOra||'').slice(0,16);
+      document.getElementById('vis-esito').value = v.Esito||'';
+      document.getElementById('vis-durata').value = v.Durata||'';
+      document.getElementById('vis-prossima').value = v.ProssimaVisita||'';
+      document.getElementById('vis-note').value = v.NoteVisita||'';
+      renderCampiCustomForm('vis-custom-fields', CAMPI_VIS, v);
+    }
+  }
+  openModal('modal-visita');
+}
+
+async function saveVisita() {
+  const id = document.getElementById('vis-id').value;
+  const clienteID = document.getElementById('vis-cliente').value;
+  const dataOra   = document.getElementById('vis-data').value;
+  if (!clienteID || !dataOra) { toast('Cliente e data obbligatori','error'); return; }
+
+  const data = {
+    ID: id || undefined,
+    ClienteID: clienteID,
+    AgentID: SESSION.ID,
+    DataOra: dataOra,
+    Esito: document.getElementById('vis-esito').value,
+    Durata: document.getElementById('vis-durata').value,
+    ProssimaVisita: document.getElementById('vis-prossima').value,
+    NoteVisita: document.getElementById('vis-note').value,
+    ...getCampiCustomValues('vis-custom-fields', CAMPI_VIS)
+  };
+
+  const r = await api({ action:'saveVisita', data: JSON.stringify(data) });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast(id ? 'Visita aggiornata' : 'Visita registrata','success');
+  closeModal('modal-visita');
+  await loadVisite();
+  renderVisite();
+  renderDashboard();
+}
+
+async function deleteVisita(id) {
+  if (!confirm('Eliminare questa visita?')) return;
+  const r = await api({ action:'deleteVisita', id });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Visita eliminata','success');
+  await loadVisite();
+  renderVisite();
+}
+
+// ══════════════════════════════════════════════════════════
+//  CALENDARIO
+// ══════════════════════════════════════════════════════════
+function calMove(dir) { CAL_DATE.setMonth(CAL_DATE.getMonth() + dir); renderCalendar(); }
+
+function renderCalendar() {
+  const y = CAL_DATE.getFullYear(), m = CAL_DATE.getMonth();
+  const mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  document.getElementById('cal-title').textContent = mesi[m] + ' ' + y;
+
+  const first = new Date(y, m, 1);
+  const last  = new Date(y, m+1, 0);
+  let start = new Date(first);
+  start.setDate(start.getDate() - ((start.getDay()+6)%7));
+
+  const days = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  let html = days.map(d => `<div class="cal-day-header">${d}</div>`).join('');
+
+  const oggi = new Date().toISOString().substring(0,10);
+  let cur = new Date(start);
+  for (let i=0; i<42; i++) {
+    const ds = cur.toISOString().substring(0,10);
+    const isOther = cur.getMonth() !== m;
+    const isToday = ds === oggi;
+
+    const dayApps = APPUNTAMENTI.filter(a => (a.DataOra||'').substring(0,10) === ds);
+    const dayVis  = VISITE.filter(v => (v.DataOra||'').substring(0,10) === ds);
+
+    const evHtml = [
+      ...dayApps.map(a => `<div class="cal-event appuntamento" title="${a.Titolo||''}">${a.Titolo||'Appuntamento'}</div>`),
+      ...dayVis.map(v => {
+        const cli = CLIENTI.find(c => c.ID === v.ClienteID);
+        return `<div class="cal-event visita">${cli?.RagioneSociale||'Visita'}</div>`;
+      })
+    ].join('');
+
+    html += `<div class="cal-day ${isOther?'other-month':''} ${isToday?'today':''}" onclick="openAppModal(null,'${ds}')">
+      <div class="day-num">${cur.getDate()}</div>
+      ${evHtml}
+    </div>`;
+    cur.setDate(cur.getDate() + 1);
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function openAppModal(id, datePreset) {
+  document.getElementById('app-id').value = '';
+  document.getElementById('app-titolo').value = '';
+  document.getElementById('app-note').value = '';
+  document.getElementById('app-tipo').value = 'Visita';
+  document.getElementById('app-ricorrente').value = '';
+  const dt = datePreset || new Date().toISOString().slice(0,10);
+  document.getElementById('app-inizio').value = dt + 'T09:00';
+  document.getElementById('app-fine').value   = dt + 'T10:00';
+  document.getElementById('modal-app-title').textContent = id ? 'Modifica appuntamento' : 'Nuovo appuntamento';
+
+  const sel = document.getElementById('app-cliente');
+  sel.innerHTML = '<option value="">— nessuno —</option>' + CLIENTI.map(c => `<option value="${c.ID}">${c.RagioneSociale}</option>`).join('');
+
+  if (id) {
+    const a = APPUNTAMENTI.find(x => x.ID === id);
+    if (a) {
+      document.getElementById('app-id').value = a.ID;
+      sel.value = a.ClienteID||'';
+      document.getElementById('app-titolo').value = a.Titolo||'';
+      document.getElementById('app-inizio').value = (a.DataOra||'').slice(0,16);
+      document.getElementById('app-fine').value   = (a.Fine||'').slice(0,16);
+      document.getElementById('app-tipo').value   = a.Tipo||'Visita';
+      document.getElementById('app-ricorrente').value = a.Ricorrente||'';
+      document.getElementById('app-note').value = a.Note||'';
+    }
+  }
+  openModal('modal-app');
+}
+
+async function saveAppuntamento() {
+  const titolo = document.getElementById('app-titolo').value.trim();
+  const inizio = document.getElementById('app-inizio').value;
+  if (!titolo || !inizio) { toast('Titolo e data inizio obbligatori','error'); return; }
+  const id = document.getElementById('app-id').value;
+  const data = {
+    ID: id || undefined,
+    AgentID: SESSION.ID,
+    ClienteID: document.getElementById('app-cliente').value,
+    Titolo: titolo,
+    DataOra: inizio,
+    Fine: document.getElementById('app-fine').value,
+    Tipo: document.getElementById('app-tipo').value,
+    Ricorrente: document.getElementById('app-ricorrente').value,
+    Note: document.getElementById('app-note').value,
+  };
+  const r = await api({ action:'saveAppuntamento', data: JSON.stringify(data) });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Appuntamento salvato','success');
+  closeModal('modal-app');
+  await loadAppuntamenti();
+  renderCalendar();
+}
+
+// ══════════════════════════════════════════════════════════
+//  MAPPA
+// ══════════════════════════════════════════════════════════
+const MAP_TILES = {
+  dark:    { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',    attr: '© CartoDB', sub: 'abcd' },
+  light:   { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',   attr: '© CartoDB', sub: 'abcd' },
+  streets: { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attr: '© CartoDB', sub: 'abcd' },
+  topo:    { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr: '© OpenTopoMap', sub: 'abc' },
+};
+let MAP_TILE_LAYER = null;
+
+function renderMappa() {
+  if (!MAP_INST) {
+    MAP_INST = L.map('map').setView([45.4654, 9.1866], 6);
+    const t = MAP_TILES.dark;
+    MAP_TILE_LAYER = L.tileLayer(t.url, { attribution: t.attr, subdomains: t.sub, maxZoom: 19 }).addTo(MAP_INST);
+  }
+  updateMapMarkers();
+}
+
+function changeMapStyle() {
+  if (!MAP_INST) return;
+  const key = document.getElementById('map-style').value;
+  const t   = MAP_TILES[key];
+  if (MAP_TILE_LAYER) MAP_TILE_LAYER.remove();
+  MAP_TILE_LAYER = L.tileLayer(t.url, { attribution: t.attr, subdomains: t.sub, maxZoom: 19 }).addTo(MAP_INST);
+}
+
+function getMapClienti() {
+  const q = (document.getElementById('map-search')?.value || '').toLowerCase();
+  return CLIENTI.filter(c => {
+    if (!c.Lat || !c.Lng) return false;
+    const matchPri = MAP_PRI_FILTER === 'all' || c.Priorita === MAP_PRI_FILTER;
+    const matchQ   = !q || (c.RagioneSociale||'').toLowerCase().includes(q)
+                        || (c.Citta||'').toLowerCase().includes(q);
+    return matchPri && matchQ;
+  });
+}
+
+function filterMapClienti() { updateMapMarkers(); }
+function setMapPriFilter(p, btn) {
+  MAP_PRI_FILTER = p;
+  document.querySelectorAll('#view-mappa .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateMapMarkers();
+}
+
+function updateMapMarkers() {
+  MAP_MARKERS.forEach(m => m.remove());
+  MAP_MARKERS = [];
+  const priColors = { A: '#f75f5f', B: '#f7b94f', C: '#4f8ef7' };
+  const data = getMapClienti();
+  document.getElementById('map-count').textContent = data.length + ' clienti su mappa';
+
+  data.forEach(c => {
+    const col = priColors[c.Priorita] || priColors.C;
+    const icon = L.divIcon({
+      html: `<div style="width:12px;height:12px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+      iconSize: [12,12], iconAnchor: [6,6], className: ''
+    });
+    const m = L.marker([parseFloat(c.Lat), parseFloat(c.Lng)], { icon });
+    m.bindPopup(`<div class="map-popup">
+      <h4>${c.RagioneSociale}</h4>
+      <p>${c.Indirizzo||''} ${c.Citta ? '— '+c.Citta : ''}</p>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${c.Lat},${c.Lng}" target="_blank">🗺️ Naviga con Google Maps</a>
+    </div>`);
+    m.addTo(MAP_INST);
+    MAP_MARKERS.push(m);
+  });
+
+  if (MAP_MARKERS.length && MAP_PRI_FILTER !== 'all') {
+    const group = L.featureGroup(MAP_MARKERS);
+    MAP_INST.fitBounds(group.getBounds().pad(0.1));
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  REPORT
+// ══════════════════════════════════════════════════════════
+function initReport() {
+  const now = new Date();
+  const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('rep-from').value = `${y}-${m}-01`;
+  document.getElementById('rep-to').value   = now.toISOString().substring(0,10);
+  loadReport();
+}
+
+async function loadReport() {
+  const from = document.getElementById('rep-from').value;
+  const to   = document.getElementById('rep-to').value;
+  const r = await api({ action:'getReport', agentID:SESSION.ID, ruolo:SESSION.Ruolo, from, to });
+  if (!r.success) { toast(r.error,'error'); return; }
+  const d = r.data;
+
+  document.getElementById('rep-stats').innerHTML = `
+    <div class="stat-card"><div class="label">Visite periodo</div><div class="value">${d.totale}</div></div>
+    <div class="stat-card"><div class="label">Clienti visitati</div><div class="value">${d.clientiUnici}</div></div>
+    <div class="stat-card"><div class="label">Durata media</div><div class="value">${d.durataMedia ? d.durataMedia+' min' : '—'}</div></div>
+  `;
+
+  const maxEsito  = Math.max(...Object.values(d.perEsito||{1:1}), 1);
+  const esitoCols = { Positivo:'var(--accent2)', Negativo:'var(--danger)', 'Da richiamare':'var(--warn)' };
+
+  const esitoHtml = Object.entries(d.perEsito||{}).map(([k,v]) => `
+    <div class="bar-item">
+      <div class="bar-label"><span>${k}</span><span>${v}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxEsito*100)}%;background:${esitoCols[k]||'var(--accent)'}"></div></div>
+    </div>`).join('') || '<p style="color:var(--text2);font-size:13px">Nessun dato</p>';
+
+  // ultimi 14 giorni attività
+  const giorni = Object.entries(d.perGiorno||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
+  const maxG = Math.max(...giorni.map(g=>g[1]), 1);
+  const giorniHtml = giorni.map(([k,v]) => `
+    <div class="bar-item">
+      <div class="bar-label"><span>${k.slice(5)}</span><span>${v}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxG*100)}%;background:var(--accent)"></div></div>
+    </div>`).join('') || '<p style="color:var(--text2);font-size:13px">Nessun dato</p>';
+
+  document.getElementById('rep-charts').innerHTML = `
+    <div class="report-card"><h3>Visite per esito</h3>${esitoHtml}</div>
+    <div class="report-card"><h3>Attività ultimi 14 giorni</h3>${giorniHtml}</div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════
+//  AGENTI
+// ══════════════════════════════════════════════════════════
+async function renderAgenti() {
+  await loadAgenti();
+  document.getElementById('agenti-list').innerHTML = AGENTI.map(a => `
+    <div class="agent-item">
+      <div class="agent-avatar">${(a.Nome||'?').substring(0,2).toUpperCase()}</div>
+      <div class="agent-info">
+        <div class="aname">${a.Nome}</div>
+        <div class="aemail">${a.Email}</div>
+      </div>
+      <span class="role-badge role-${a.Ruolo}">${a.Ruolo}</span>
+      <button class="btn btn-ghost btn-sm" onclick="openAgenteModal('${a.ID}')">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteAgente('${a.ID}')">🗑</button>
+    </div>`).join('') || '<div class="empty-state"><div class="icon">👥</div><p>Nessun agente</p></div>';
+}
+
+function openAgenteModal(id) {
+  document.getElementById('ag-id').value = '';
+  document.getElementById('ag-nome').value = '';
+  document.getElementById('ag-email').value = '';
+  document.getElementById('ag-pwd').value = '';
+  document.getElementById('ag-ruolo').value = 'agente';
+  document.getElementById('modal-agente-title').textContent = id ? 'Modifica agente' : 'Nuovo agente';
+
+  if (id) {
+    const a = AGENTI.find(x => x.ID === id);
+    if (a) {
+      document.getElementById('ag-id').value = a.ID;
+      document.getElementById('ag-nome').value = a.Nome||'';
+      document.getElementById('ag-email').value = a.Email||'';
+      document.getElementById('ag-ruolo').value = a.Ruolo||'agente';
+    }
+  }
+  openModal('modal-agente');
+}
+
+async function saveAgente() {
+  const id   = document.getElementById('ag-id').value;
+  const nome = document.getElementById('ag-nome').value.trim();
+  const email= document.getElementById('ag-email').value.trim();
+  const pwd  = document.getElementById('ag-pwd').value;
+  if (!nome || !email) { toast('Nome ed email obbligatori','error'); return; }
+  if (!id && !pwd) { toast('Password obbligatoria per nuovo agente','error'); return; }
+
+  const data = { ID:id||undefined, Nome:nome, Email:email, Ruolo:document.getElementById('ag-ruolo').value };
+  if (pwd) data.password = pwd;
+
+  const r = await api({ action:'saveAgente', data: JSON.stringify(data) });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Agente salvato','success');
+  closeModal('modal-agente');
+  renderAgenti();
+}
+
+async function deleteAgente(id) {
+  if (id === SESSION.ID) { toast('Non puoi eliminare te stesso','error'); return; }
+  if (!confirm('Eliminare questo agente?')) return;
+  const r = await api({ action:'deleteAgente', id });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Agente eliminato','success');
+  renderAgenti();
+}
+
+// ══════════════════════════════════════════════════════════
+//  CAMPI CUSTOM
+// ══════════════════════════════════════════════════════════
+function renderImpostazioni() {
+  renderCampiCustomList('custom-clienti-list', CAMPI_CLI);
+  renderCampiCustomList('custom-visite-list', CAMPI_VIS);
+}
+
+function renderCampiCustomList(containerId, campi) {
+  document.getElementById(containerId).innerHTML = campi.length ?
+    campi.map(f => `
+      <div class="custom-field-item">
+        <span class="field-name">${f.NomeCampo}</span>
+        <span class="field-type">${f.TipoCampo}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteCampoCustom('${f.ID}','${f.Entita}')">🗑</button>
+      </div>`).join('') :
+    '<p style="color:var(--text2);font-size:13px">Nessun campo personalizzato</p>';
+}
+
+function openCampoModal(entita) {
+  document.getElementById('campo-entita').value = entita;
+  document.getElementById('campo-nome').value = '';
+  document.getElementById('campo-tipo').value = 'text';
+  openModal('modal-campo');
+}
+
+async function saveCampoCustom() {
+  const nome   = document.getElementById('campo-nome').value.trim();
+  const tipo   = document.getElementById('campo-tipo').value;
+  const entita = document.getElementById('campo-entita').value;
+  if (!nome) { toast('Nome campo obbligatorio','error'); return; }
+
+  const r = await api({ action:'saveCampoCustom', data: JSON.stringify({ NomeCampo:nome, TipoCampo:tipo, Entita:entita }) });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Campo aggiunto','success');
+  closeModal('modal-campo');
+  await loadCampiCustom();
+  renderImpostazioni();
+}
+
+async function deleteCampoCustom(id, entita) {
+  if (!confirm('Eliminare questo campo?')) return;
+  const r = await api({ action:'deleteCampoCustom', id });
+  if (!r.success) { toast(r.error,'error'); return; }
+  toast('Campo eliminato','success');
+  await loadCampiCustom();
+  renderImpostazioni();
+}
+
+function renderCampiCustomForm(containerId, campi, values) {
+  document.getElementById(containerId).innerHTML = campi.map(f => {
+    const val = values[f.NomeCampo]||'';
+    let input = '';
+    switch(f.TipoCampo) {
+      case 'textarea':
+        input = `<textarea id="cf-${f.ID}" class="form-group">${val}</textarea>`; break;
+      case 'checkbox':
+        input = `<input type="checkbox" id="cf-${f.ID}" ${val?'checked':''}>`; break;
+      case 'number':
+        input = `<input type="number" id="cf-${f.ID}" value="${val}">`; break;
+      case 'date':
+        input = `<input type="date" id="cf-${f.ID}" value="${val}">`; break;
+      default:
+        input = `<input type="text" id="cf-${f.ID}" value="${val}">`;
+    }
+    return `<div class="form-group"><label>${f.NomeCampo}</label>${input}</div>`;
+  }).join('');
+}
+
+function getCampiCustomValues(containerId, campi) {
+  const vals = {};
+  campi.forEach(f => {
+    const el = document.getElementById('cf-' + f.ID);
+    if (!el) return;
+    vals[f.NomeCampo] = f.TipoCampo === 'checkbox' ? el.checked : el.value;
+  });
+  return vals;
+}
+
+// ══════════════════════════════════════════════════════════
+//  IMPORT EXCEL
+// ══════════════════════════════════════════════════════════
+
+// Simboli → Priorità
+const PRI_A_SIMBOLI = new Set(['🔥','💣','⛔','🚀','🎯','💥','⚠️']);
+const PRI_B_SIMBOLI = new Set(['💛','🧡','🔔','🚦','🌟','📍','🎀','🌸','🌼','🌈']);
+
+function simboloToPriority(s) {
+  if (!s) return 'C';
+  if (PRI_A_SIMBOLI.has(s)) return 'A';
+  if (PRI_B_SIMBOLI.has(s)) return 'B';
+  return 'C';
+}
+
+function safeStr(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return String(v);
+  // Gestisci date Excel (numero seriale o oggetto Date)
+  if (v instanceof Date) return v.toISOString().substring(0,10);
+  return String(v).trim();
+}
+
+function mapRowToCRM(row, agentID) {
+  // Supporta sia colonne con nome che file generico
+  const get = (key) => safeStr(row[key]);
+
+  // Detect se è il file portatour (ha colonna "Azienda")
+  const isPortatour = 'Azienda' in row;
+
+  if (isPortatour) {
+    const cognome   = get('Cognome');
+    const nome      = get('Nome');
+    const referente = [cognome, nome].filter(Boolean).join(' ');
+    const simbolo   = get('Simbolo');
+    const email     = get('e-mail Az.') || get('email Pers.');
+    const telefono  = get('Cell. Pers.') || get('Tel. Fisso');
+    const note      = [get('Note:'), get('Nota Cliente')].filter(Boolean).join('\n');
+
+    return {
+      AgentID:          agentID,
+      RagioneSociale:   get('Azienda'),
+      Indirizzo:        get('Via'),
+      Citta:            get('Città'),
+      Provincia:        get('Provincia'),
+      CAP:              get('CAP'),
+      Nazione:          get('Nazione'),
+      Telefono:         telefono,
+      Email:            email,
+      Priorita:         simboloToPriority(simbolo),
+      NoteLibere:       note,
+      Lat:              safeStr(row['Latitudine']),
+      Lng:              safeStr(row['Longitudine']),
+      // Campi custom
+      Referente:              referente,
+      CellularePersonale:     get('Cell. Pers.'),
+      TelefonoFisso:          get('Tel. Fisso'),
+      EmailPersonale:         get('email Pers.'),
+      EmailAziendale:         get('e-mail Az.'),
+      SitoWeb:                get('Sito web'),
+      Tecnico:                get('Tecnico'),
+      EmailTecnico:           get('email Tecn.'),
+      CellulareTecnico:       get('Cell. Tecn.'),
+      RifAmministrativo:      get('Rif. Amm.'),
+      CellAmministrativo:     get('Cell. Amm.'),
+      EmailAmministrativo:    get('email Amm.'),
+      Listino:                get('Listino'),
+      ListinoV:               get('LISTINO V'),
+      Pagamento:              get('Pagamento'),
+      AnnotazionePagamento:   get('Ann. Pag.'),
+      VisitaPrecedente:       get('Visita precedente'),
+      DataAttivazione:        get('Data di attivazione'),
+      Simbolo:                simbolo,
+      Fatturato:              get('Fatt. AZIENDA 📊 €'),
+      Dipendenti:             get('Dipendenti'),
+      ProssimeAzioni:         get('Prossime AZIONI'),
+      Promemoria:             get('Promemoria'),
+    };
+  }
+
+  // Formato generico: mappa colonne standard
+  return {
+    AgentID:        agentID,
+    RagioneSociale: get('RagioneSociale') || get('Azienda') || get('Cliente') || get('Nome'),
+    Indirizzo:      get('Indirizzo') || get('Via'),
+    Citta:          get('Citta') || get('Città'),
+    Provincia:      get('Provincia'),
+    CAP:            get('CAP'),
+    Telefono:       get('Telefono') || get('Tel'),
+    Email:          get('Email') || get('email'),
+    Priorita:       get('Priorita') || 'C',
+    NoteLibere:     get('NoteLibere') || get('Note'),
+    Lat:            safeStr(row['Lat'] || row['Latitudine']),
+    Lng:            safeStr(row['Lng'] || row['Longitudine']),
+  };
+}
+
+async function openImportModal() {
+  await loadAgenti();
+  const sel = document.getElementById('import-agente');
+  sel.innerHTML = AGENTI.map(a => `<option value="${a.ID}">${a.Nome}</option>`).join('');
+  sel.value = SESSION.ID;
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-preview').textContent = '';
+  IMPORT_DATA = [];
+  openModal('modal-import');
+}
+
+document.getElementById('import-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      IMPORT_DATA = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const isPortatour = IMPORT_DATA.length && 'Azienda' in IMPORT_DATA[0];
+      document.getElementById('import-preview').innerHTML =
+        `✅ <strong>${IMPORT_DATA.length}</strong> clienti pronti per l'importazione.<br>
+         Formato rilevato: <strong>${isPortatour ? 'Portatour (mappatura automatica)' : 'Generico'}</strong>`;
+    } catch(err) {
+      document.getElementById('import-preview').textContent = '❌ Errore lettura file: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+async function doImport() {
+  if (!IMPORT_DATA.length) { toast('Carica prima un file','error'); return; }
+  const agentID = document.getElementById('import-agente').value;
+
+  // Mappa ogni riga al formato CRM
+  const mapped = IMPORT_DATA
+    .map(row => mapRowToCRM(row, agentID))
+    .filter(c => c.RagioneSociale); // scarta righe senza nome
+
+  if (!mapped.length) { toast('Nessun cliente valido trovato','error'); return; }
+
+  toast(`Importazione di ${mapped.length} clienti in corso...`, 'info');
+
+  // Invia in batch da 100 per evitare timeout
+  const BATCH = 100;
+  let imported = 0;
+  for (let i = 0; i < mapped.length; i += BATCH) {
+    const batch = mapped.slice(i, i + BATCH);
+    const r = await api({ action: 'importClienti', data: JSON.stringify(batch) });
+    if (!r.success) { toast('Errore batch ' + i + ': ' + r.error, 'error'); return; }
+    imported += batch.length;
+    document.getElementById('import-preview').innerHTML =
+      `⏳ Importati <strong>${imported}</strong> / ${mapped.length}...`;
+  }
+
+  toast(`✅ Importati ${imported} clienti con successo!`, 'success');
+  closeModal('modal-import');
+  await loadClienti();
+  renderClienti();
+}
+
+// ══════════════════════════════════════════════════════════
+//  HELPERS UI
+// ══════════════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Chiudi modal cliccando overlay
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function esitoTag(esito) {
+  if (!esito) return '<span class="badge-tag tag-default">—</span>';
+  const cls = {
+    'Positivo':'tag-positivo','Negativo':'tag-negativo',
+    'Da richiamare':'tag-richiamare'
+  }[esito] || 'tag-default';
+  return `<span class="badge-tag ${cls}">${esito}</span>`;
+}
+
+function renderPagination(id, current, pages, onClick) {
+  const el = document.getElementById(id);
+  if (!el || pages <= 1) { if(el) el.innerHTML=''; return; }
+  let html = `<span>Pagina ${current} di ${pages}</span>`;
+  html += `<button class="page-btn" onclick="(${onClick.toString()})(${current-1})" ${current<=1?'disabled':''}>‹</button>`;
+  for (let p=Math.max(1,current-2); p<=Math.min(pages,current+2); p++) {
+    html += `<button class="page-btn ${p===current?'active':''}" onclick="(${onClick.toString()})(${p})">${p}</button>`;
+  }
+  html += `<button class="page-btn" onclick="(${onClick.toString()})(${current+1})" ${current>=pages?'disabled':''}>›</button>`;
+  el.innerHTML = html;
+}
+</script>
+</body>
+</html>
