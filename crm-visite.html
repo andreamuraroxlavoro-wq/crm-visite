@@ -1911,45 +1911,50 @@ document.getElementById('import-file').addEventListener('change', e => {
   reader.readAsArrayBuffer(file);
 });
 
-async function apiPost(action, data) {
-  try {
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, data })
-    });
-    return await res.json();
-  } catch(e) {
-    return { success: false, error: e.message };
+// Versione compressa dell'API per URL lunghi - divide i dati in chunks
+async function apiChunked(action, data) {
+  // Rimuovi campi vuoti per ridurre dimensione URL
+  const clean = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== '' && v !== null && v !== undefined && v !== false) {
+      clean[k] = v;
+    }
   }
+  return await api({ action, data: JSON.stringify(clean) });
 }
 
 async function doImport() {
   if (!IMPORT_DATA.length) { toast('Carica prima un file','error'); return; }
   const agentID = document.getElementById('import-agente').value;
 
-  // Mappa ogni riga al formato CRM
   const mapped = IMPORT_DATA
     .map(row => mapRowToCRM(row, agentID))
     .filter(c => c.RagioneSociale);
 
   if (!mapped.length) { toast('Nessun cliente valido trovato','error'); return; }
 
-  toast(`Importazione di ${mapped.length} clienti in corso...`, 'info');
-
-  // Invia in batch da 50 via POST (nessun limite URL)
-  const BATCH = 50;
+  const total = mapped.length;
   let imported = 0;
-  for (let i = 0; i < mapped.length; i += BATCH) {
-    const batch = mapped.slice(i, i + BATCH);
-    const r = await apiPost('importClienti', batch);
-    if (!r.success) { toast('Errore batch ' + i + ': ' + r.error, 'error'); return; }
-    imported += batch.length;
-    document.getElementById('import-preview').innerHTML =
-      `⏳ Importati <strong>${imported}</strong> / ${mapped.length}...`;
+  let errors = 0;
+
+  toast(`Importazione di ${total} clienti in corso... (potrebbe richiedere qualche minuto)`, 'info');
+
+  // Invia un cliente alla volta via JSONP (unico metodo cross-origin supportato da Apps Script)
+  for (let i = 0; i < mapped.length; i++) {
+    const r = await apiChunked('saveCliente', mapped[i]);
+    if (r.success) {
+      imported++;
+    } else {
+      errors++;
+    }
+    // Aggiorna progress ogni 10 clienti
+    if (i % 10 === 0 || i === mapped.length - 1) {
+      document.getElementById('import-preview').innerHTML =
+        `⏳ Importati <strong>${imported}</strong> / ${total}${errors > 0 ? ' (errori: '+errors+')' : ''}...`;
+    }
   }
 
-  toast(`✅ Importati ${imported} clienti con successo!`, 'success');
+  toast(`✅ Importati ${imported} clienti su ${total}!`, 'success');
   closeModal('modal-import');
   await loadClienti();
   renderClienti();
